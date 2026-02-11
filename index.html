@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>One Cookbook to Rule them All (OCRA)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      html {
+        font-size: 10px;
+      }
+      body {
+        font-family: 'Epilogue', sans-serif;
+      }
+
+      /* Visually hidden class for screen readers */
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border-width: 0;
+      }
+
+      /* Styles for Print Preview Modal */
+      .print-preview-modal-overlay {
+        position: fixed;
+        inset: 0;
+        background-color: rgba(0, 0, 0, 0.75);
+        z-index: 50;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 2rem;
+      }
+      .print-preview-modal {
+        background-color: white;
+        width: 100%;
+        max-width: 800px;
+        height: 90vh;
+        overflow-y: auto;
+        position: relative;
+        padding: 3rem 2rem;
+      }
+      .print-preview-modal-actions {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        display: flex;
+        gap: 0.5rem;
+        z-index: 60;
+      }
+
+      .print-preview-content {
+        border: none;
+        box-shadow: none;
+        margin: 0;
+        padding: 0;
+        font-size: 11pt;
+        line-height: 1.5;
+        color: black;
+      }
+      .print-preview-content .print-button { display: none; }
+      .print-preview-content h1, .print-preview-content h2, .print-preview-content h3, .print-preview-content p, .print-preview-content span, .print-preview-content li { color: black !important; }
+      .print-preview-content .dark\\:text-gray-100, .print-preview-content .dark\\:text-gray-200, .print-preview-content .dark\\:text-gray-300, .print-preview-content .dark\\:text-gray-400 { color: black !important; }
+      .print-preview-content .text-orange-500, .print-preview-content .text-orange-600 { color: black !important; }
+      .print-preview-content .bg-orange-500, 
+      .print-preview-content .bg-orange-400,
+      .print-preview-content .bg-orange-50 { background-color: transparent !important; border: 1px solid #eee; }
+      .print-preview-content header h1 { font-size: 20pt; }
+      .print-preview-content header p { font-size: 12pt; }
+      .print-preview-content .print-layout-container { display: block !important; }
+      .print-preview-content #instructions-section { margin-top: 2rem; }
+      .print-preview-content ol li > div:first-child { border: 1px solid #ccc; background-color: #f0f0f0; }
+      .print-preview-content #ingredients-section ul { list-style-type: disc; padding-left: 2rem; }
+      .print-preview-content #ingredients-section ul li { display: list-item; padding-left: 0.5rem; }
+      .print-preview-content #ingredients-section ul li > span:first-child { display: none; }
+      .print-preview-content .no-print-preview { display: none; }
+
+
+      @media print {
+        @page {
+          margin: 1.5cm;
+        }
+
+        body {
+          font-family: 'Epilogue', sans-serif;
+        }
+
+        body * {
+          visibility: hidden;
+        }
+        
+        #recipe-content, #recipe-content * {
+          visibility: visible;
+        }
+        
+        #recipe-content {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+          border: none;
+          box-shadow: none;
+          margin: 0;
+          padding: 0;
+          font-size: 11pt;
+          line-height: 1.5;
+        }
+        
+        .print-button {
+          display: none;
+        }
+
+        /* Reset colors for printing */
+        #recipe-content h2, #recipe-content h3, #recipe-content p, #recipe-content span, #recipe-content li {
+          color: black !important;
+        }
+        #recipe-content .text-orange-500 {
+           color: black !important;
+        }
+        #recipe-content .bg-orange-500, 
+        #recipe-content .bg-orange-400,
+        #recipe-content .bg-orange-50 {
+          background-color: transparent !important;
+          border: 1px solid #eee; /* Add a light border to info cards */
+        }
+        
+        #recipe-content header h2 {
+            font-size: 20pt;
+        }
+
+        #recipe-content header p {
+            font-size: 12pt;
+        }
+
+        /* Layout adjustments */
+        .print-layout-container {
+          display: block !important; /* Stack sections vertically */
+        }
+
+        #instructions-section {
+          margin-top: 2rem;
+        }
+        
+        /* Page break control */
+        #recipe-content header, 
+        #recipe-content li {
+          page-break-inside: avoid;
+        }
+
+        #instructions-section,
+        #notes-section {
+            page-break-before: auto;
+        }
+
+        /* List styling */
+        #recipe-content ol li span {
+          border: 1px solid #ccc;
+        }
+        
+        #ingredients-section ul {
+            list-style-type: disc;
+            padding-left: 2rem;
+        }
+        #ingredients-section ul li {
+            display: list-item;
+            padding-left: 0.5rem;
+        }
+        #ingredients-section ul li > span:first-child {
+            display: none; /* Hide the decorative span */
+        }
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.27.0",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0"
+  }
+}
+</script>
+</head>
+  <body class="bg-gray-50 text-gray-800">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

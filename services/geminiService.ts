@@ -1,0 +1,117 @@
+import { GoogleGenAI, Type, Modality } from "@google/genai";
+import type { Recipe } from '../types';
+
+// Initialize the Google Gemini AI client with the API key from environment variables.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+
+// Define the JSON schema for the recipe structure we expect from the AI model.
+const recipeSchema = {
+  type: Type.OBJECT,
+  properties: {
+    name: { type: Type.STRING, description: 'The name of the recipe.' },
+    description: { type: Type.STRING, description: 'A short, enticing description of the dish.' },
+    prepTime: { type: Type.STRING, description: 'Preparation time, e.g., "15 minutes".' },
+    cookTime: { type: Type.STRING, description: 'Cooking time, e.g., "25 minutes".' },
+    servings: { type: Type.STRING, description: 'Number of servings, e.g., "4 people".' },
+    ingredients: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          name: { type: Type.STRING, description: 'The name of the ingredient.' },
+          imperial: { type: Type.STRING, description: 'The quantity in imperial units (e.g., "1 cup", "2 tbsp").' },
+          metric: { type: Type.STRING, description: 'The quantity in metric units (e.g., "g", "ml").' }
+        },
+        required: ['name', 'imperial', 'metric']
+      },
+      description: 'A list of ingredients, each with its name and quantity in both imperial and metric units.'
+    },
+    instructions: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+      description: 'Step-by-step cooking instructions.'
+    },
+    nutritionalInfo: {
+        type: Type.OBJECT,
+        description: 'Estimated nutritional information per serving.',
+        properties: {
+            calories: { type: Type.STRING, description: 'e.g., "550 kcal"' },
+            protein: { type: Type.STRING, description: 'e.g., "30g"' },
+            fat: { type: Type.STRING, description: 'e.g., "25g"' },
+            carbs: { type: Type.STRING, description: 'e.g., "45g"' }
+        },
+        required: ['calories', 'protein', 'fat', 'carbs']
+    },
+    tips: {
+        type: Type.ARRAY,
+        items: { type: Type.STRING },
+        description: 'Optional tips for the recipe, like variations or serving suggestions.'
+    }
+  },
+  required: ['name', 'description', 'prepTime', 'cookTime', 'servings', 'ingredients', 'instructions']
+};
+
+/**
+ * Generates a recipe by calling the Gemini API with a specific dish name.
+ * @param dishName The name of the dish to generate a recipe for.
+ * @returns A promise that resolves to a Recipe object.
+ */
+export const generateRecipe = async (dishName: string): Promise<Recipe> => {
+  try {
+    const prompt = `Generate a detailed recipe for ${dishName}. Include a brief description, preparation time, cooking time, number of servings, step-by-step instructions, and some optional tips. For each ingredient, provide the name, and the quantity in both imperial (e.g., cups, oz) and metric (e.g., grams, ml) units. Also provide estimated nutritional information per serving, including calories, protein, fat, and carbohydrates.`;
+
+    // Call the Gemini API to generate content based on the prompt and schema.
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash", // Use a suitable model for this task.
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: recipeSchema,
+      },
+    });
+
+    // The response text should be a JSON string that matches the schema.
+    const jsonText = response.text.trim();
+    
+    // The model might wrap the JSON in markdown backticks, so we clean it.
+    const cleanedJsonText = jsonText.replace(/^```json\n?/, '').replace(/\n?```$/, '');
+
+    const recipeData: Recipe = JSON.parse(cleanedJsonText);
+
+    // After getting the recipe, generate an image for it.
+    try {
+        const imagePrompt = `A high-quality, delicious-looking photo of ${recipeData.name}, professionally styled and lit, on a clean background.`;
+        const imageResponse = await ai.models.generateContent({
+            model: 'gemini-2.5-flash-image',
+            contents: {
+                parts: [{ text: imagePrompt }],
+            },
+            config: {
+                responseModalities: [Modality.IMAGE],
+            },
+        });
+
+        for (const part of imageResponse.candidates[0].content.parts) {
+            if (part.inlineData) {
+                const base64ImageBytes: string = part.inlineData.data;
+                recipeData.imageUrl = `data:image/png;base64,${base64ImageBytes}`;
+                break; // Exit loop once the image is found
+            }
+        }
+    } catch (imageError) {
+        console.warn("Could not generate recipe image. Using a default placeholder.", imageError);
+        // If image generation fails, provide a default placeholder so the UI doesn't break.
+        // The recipe data is still valuable to the user.
+        recipeData.imageUrl = 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D';
+    }
+
+    return recipeData;
+
+  } catch (error) {
+    console.error("Error generating recipe:", error);
+    if (error instanceof Error) {
+        throw new Error(`Failed to generate recipe from AI: ${error.message}`);
+    }
+    throw new Error("An unknown error occurred while generating the recipe.");
+  }
+};
